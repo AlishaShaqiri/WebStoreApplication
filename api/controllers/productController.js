@@ -1,6 +1,33 @@
 const db = require('../models/db');
 const { io } = require('../app'); 
+const multer = require('multer');
+const path = require('path');
 
+// Configure multer storage
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/'); // Save uploaded images to the 'uploads' directory
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // Max 5 MB file size
+  fileFilter: (req, file, cb) => {
+    const fileTypes = /jpeg|jpg|png|gif/;
+    const extname = fileTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = fileTypes.test(file.mimetype);
+
+    if (extname && mimetype) {
+      return cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only JPG, JPEG, PNG, and GIF are allowed.'));
+    }
+  }
+});
 
 const executeQuery = (query, params = []) => {
   return new Promise((resolve, reject) => {
@@ -13,75 +40,100 @@ const executeQuery = (query, params = []) => {
 
 module.exports = {
   addProduct: async (req, res) => {
-    const { name, price, description, category_id, brand_id, size_id, color_id, person, quantity } = req.body;
-
-    if (!name || !price || !category_id || !brand_id || !size_id || !color_id || !person || quantity === undefined) {
-      return res.status(400).json({ error: 'All fields are required' });
-    }
-
-    const query = `
-      INSERT INTO Products (name, price, description, category_id, brand_id, size_id, color_id, person, quantity)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
-
-    try {
-      const result = await executeQuery(query, [name, price, description, category_id, brand_id, size_id, color_id, person, quantity]);
-      const newProduct = { id: result.insertId, name, price, description, category_id, brand_id, size_id, color_id, person, quantity };
-      res.status(201).json(newProduct);
-    } catch (error) {
-      console.error("Error adding product:", error);
-      res.status(500).json({ error: 'Error adding product', details: error.message });
-    }
+    // Handle the file upload
+    upload.single('image')(req, res, async (err) => {
+      if (err) {
+        return res.status(400).json({ error: err.message });
+      }
+  
+      const { name, price, description, category_id, brand_id, size_id, color_id, person, quantity } = req.body;
+      const imagePath = req.file ? `/uploads/${req.file.filename}` : null; // Get image path
+  
+      if (!name || !price || !category_id || !brand_id || !size_id || !color_id || !person || quantity === undefined) {
+        return res.status(400).json({ error: 'All fields are required' });
+      }
+  
+      const query = `
+        INSERT INTO Products (name, price, description, category_id, brand_id, size_id, color_id, person, quantity, image)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `;
+  
+      try {
+        const result = await executeQuery(query, [name, price, description, category_id, brand_id, size_id, color_id, person, quantity, imagePath]);
+        const newProduct = { id: result.insertId, name, price, description, category_id, brand_id, size_id, color_id, person, quantity, image: imagePath };
+        res.status(201).json(newProduct);
+      } catch (error) {
+        console.error("Error adding product:", error);
+        res.status(500).json({ error: 'Error adding product', details: error.message });
+      }
+    });
   },
 
   updateProduct: async (req, res) => {
     const { id } = req.params;
-    const { name, price, description, category_id, brand_id, size_id, color_id, person, quantity } = req.body;
-
-    if (!name || !price || !category_id || !brand_id || !size_id || !color_id || !person || quantity === undefined) {
-      return res.status(400).json({ error: 'All fields are required' });
+    const { name, price, description, quantity } = req.body;
+  
+    if (!name || !price || !description || quantity === undefined) {
+      return res.status(400).json({ error: 'Name, price, description, and quantity are required' });
     }
-
-    const query = `
+  
+    let query = `
       UPDATE Products
-      SET name = ?, price = ?, description = ?, category_id = ?, brand_id = ?, size_id = ?, color_id = ?, person = ?, quantity = ?
-      WHERE id = ?
+      SET name = ?, price = ?, description = ?, quantity = ?
     `;
-
+    
+    const queryParams = [name, price, description, quantity];
+  
+    query += ' WHERE id = ?';
+    queryParams.push(id); // Ensure id is included for the update
+  
     try {
-      const result = await executeQuery(query, [name, price, description, category_id, brand_id, size_id, color_id, person, quantity, id]);
-
+      const result = await executeQuery(query, queryParams);
+  
       if (result.affectedRows === 0) {
         return res.status(404).json({ error: 'Product not found' });
       }
-
-      res.status(200).json({ id, name, price, description, category_id, brand_id, size_id, color_id, person, quantity });
+  
+      // Return updated product details (image field excluded)
+      res.status(200).json({
+        id,
+        name,
+        price,
+        description,
+        quantity,
+      });
     } catch (error) {
       console.error("Error updating product:", error);
       res.status(500).json({ error: 'Error updating product', details: error.message });
     }
-  },
+  },  
 
   deleteProduct: async (req, res) => {
     const { id } = req.params;
-
+  
     const checkProductQuery = `SELECT * FROM Products WHERE id = ?`;
     try {
       const product = await executeQuery(checkProductQuery, [id]);
-
+  
       if (product.length === 0) {
         return res.status(404).json({ error: 'Product not found' });
       }
-
+  
+      // First, delete the related order items
+      const deleteOrderItemsQuery = `DELETE FROM Order_Items WHERE product_id = ?`;
+      await executeQuery(deleteOrderItemsQuery, [id]);
+  
+      // Then delete the product itself
       const query = `DELETE FROM Products WHERE id = ?`;
       await executeQuery(query, [id]);
-
-      res.status(200).json({ message: 'Product deleted successfully' });
+  
+      res.status(200).json({ message: 'Product and related order items deleted successfully' });
     } catch (error) {
       console.error("Error deleting product:", error);
       res.status(500).json({ error: 'Error deleting product', details: error.message });
     }
   },
+  
 
   getFilters: async (req, res) => {
     try {
@@ -188,6 +240,7 @@ module.exports = {
           p.price,
           p.description,
           p.quantity,
+          p.image,
           b.name AS brand,        -- Fetch the brand name
           co.name AS color,       -- Fetch the color name
           c.name AS category      -- Fetch the category name
@@ -248,6 +301,7 @@ module.exports = {
     const query = `SELECT * FROM Products`;
     try {
       const results = await executeQuery(query);
+      console.log(results)
       res.status(200).json(results);
     } catch (error) {
       res.status(500).json({ error: 'Error fetching products', details: error.message });

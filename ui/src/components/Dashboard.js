@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { getCurrentUser, isAuthenticated } from '../services/authService';
+import config from '../services/config'; // Import the config
 import { FaDollarSign, FaChartBar, FaExclamationCircle, FaSpinner } from 'react-icons/fa';
 
 function Dashboard() {
@@ -8,8 +9,6 @@ function Dashboard() {
   const [reports, setReports] = useState({ daily: null, monthly: null, topSelling: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-
-  const API_URL = 'http://localhost:5000/api/reports';
 
   const fetchReports = async () => {
     if (!isAuthenticated()) {
@@ -28,12 +27,12 @@ function Dashboard() {
 
       try {
         const token = localStorage.getItem('token');
-        const config = { headers: { Authorization: token } };
+        const configHeaders = { headers: { Authorization: token } };
 
         const [dailyResponse, monthlyResponse, topSellingResponse] = await Promise.all([
-          axios.get(`${API_URL}/daily`, config),
-          axios.get(`${API_URL}/monthly`, config),
-          axios.get(`${API_URL}/top-selling`, config),
+          axios.get(`${config.REPORTS_URL}daily`, configHeaders),
+          axios.get(`${config.REPORTS_URL}monthly`, configHeaders),
+          axios.get(`${config.REPORTS_URL}top-selling`, configHeaders),
         ]);
 
         setReports({

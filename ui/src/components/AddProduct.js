@@ -12,8 +12,10 @@ function AddProduct() {
     size_id: '',
     color_id: '',
     person: '',
-    quantity: ''
+    quantity: '',
+    image: null,  // New field for image
   });
+  
 
   const [categories, setCategories] = useState([]);
   const [brands, setBrands] = useState([]);
@@ -50,22 +52,28 @@ function AddProduct() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    if (!productData.name || !productData.price || !productData.category_id || !productData.brand_id || !productData.size_id || !productData.color_id || !productData.person || !productData.quantity) {
-      setError('All fields are required.');
+    
+    if (!productData.name || !productData.price || !productData.category_id || !productData.brand_id || !productData.size_id || !productData.color_id || !productData.person || !productData.quantity || !productData.image) {
+      setError('All fields including image are required.');
       return;
     }
-
+    
     setLoading(true);
-
+    
     try {
       const token = localStorage.getItem('token');
       if (!token) {
         setError('You must be logged in to add a product.');
         return;
       }
-
-      const response = await addProduct(productData, token);
+    
+      // Prepare FormData
+      const formData = new FormData();
+      Object.keys(productData).forEach((key) => {
+        formData.append(key, productData[key]);
+      });
+    
+      const response = await addProduct(formData, token); // Ensure API accepts FormData
       alert('Product added successfully!');
       navigate(`/products/${response.id}`);
     } catch (error) {
@@ -75,6 +83,8 @@ function AddProduct() {
       setLoading(false);
     }
   };
+  
+  
 
   return (
     <div className="container mx-auto max-w-lg p-8 bg-white rounded-lg shadow-md">
@@ -94,6 +104,7 @@ function AddProduct() {
             className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
+        
 
         <div className="space-y-2">
           <label className="block text-gray-700 font-medium">Price</label>
@@ -196,6 +207,18 @@ function AddProduct() {
             className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
+
+        <div className="space-y-2">
+  <label className="block text-gray-700 font-medium">Product Image</label>
+  <input
+    type="file"
+    accept="image/*"
+    onChange={(e) => setProductData({ ...productData, image: e.target.files[0] })}
+    className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+  />
+</div>
+
+
 
         <button
           type="submit"

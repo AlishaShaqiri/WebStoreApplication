@@ -1,0 +1,40 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: mysql_db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: 1234
+      MYSQL_DATABASE: clothing_store
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./api/database.sql:/docker-entrypoint-initdb.d/database.sql
+
+  api:
+    image: alishashaqiri/webstoreapplication-api:latest
+    container_name: api_server
+    restart: always
+    depends_on:
+      - mysql
+    environment:
+      DB_HOST: /cloudsql/amazing-folio-450118-t6:us-central1:mysql-instance
+      DB_USER: root
+      DB_PASSWORD: 1234
+      DB_NAME: clothing_store
+      JWT_SECRET: your_secret_key
+    ports:
+      - "5000:5000"
+
+  ui:
+    image: alishashaqiri/webstoreapplication-ui:latest
+    container_name: ui_client
+    restart: always
+    depends_on:
+      - api
+    ports:
+      - "3000:3000"
+
+volumes:
+  mysql_data:

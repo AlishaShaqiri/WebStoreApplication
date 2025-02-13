@@ -1,5 +1,3 @@
-
-
 CREATE TABLE Categories (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255) NOT NULL
@@ -25,17 +23,18 @@ CREATE TABLE Products (
     name VARCHAR(255) NOT NULL,
     description TEXT,
     price DECIMAL(10, 2) NOT NULL,
-    person ENUM('Men', 'Women', 'Children'),
+    person ENUM('men', 'women', 'children'),
     quantity INT DEFAULT 0,
     category_id INT,
     brand_id INT,
     size_id INT,
     color_id INT,
     discount_percentage DECIMAL(5, 2) DEFAULT 0,
-    FOREIGN KEY (category_id) REFERENCES Categories(id),
-    FOREIGN KEY (brand_id) REFERENCES Brands(id),
-    FOREIGN KEY (size_id) REFERENCES Sizes(id),
-    FOREIGN KEY (color_id) REFERENCES Colors(id)
+    image VARCHAR(255),
+    FOREIGN KEY (category_id) REFERENCES Categories(id) ON DELETE SET NULL,
+    FOREIGN KEY (brand_id) REFERENCES Brands(id) ON DELETE SET NULL,
+    FOREIGN KEY (size_id) REFERENCES Sizes(id) ON DELETE SET NULL,
+    FOREIGN KEY (color_id) REFERENCES Colors(id) ON DELETE SET NULL
 );
 
 CREATE TABLE Users (
@@ -46,22 +45,15 @@ CREATE TABLE Users (
     role ENUM('Admin', 'Advanced User', 'Simple User') NOT NULL
 );
 
-CREATE TABLE Clients (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    email VARCHAR(255) NOT NULL UNIQUE,
-    address VARCHAR(255),
-    phone VARCHAR(20),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
 CREATE TABLE Orders (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    client_id INT,
+    client_name VARCHAR(255) NOT NULL,
+    client_email VARCHAR(255) NOT NULL,
+    client_phone VARCHAR(20) NOT NULL,
+    client_address VARCHAR(255),
     total_amount DECIMAL(10, 2),
-    status ENUM('Pending', 'Shipped', 'Delivered', 'Cancelled'),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (client_id) REFERENCES Clients(id)
+    status ENUM('Pending', 'Shipped', 'Delivered', 'Cancelled') DEFAULT 'Pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE Order_Items (
@@ -69,9 +61,9 @@ CREATE TABLE Order_Items (
     order_id INT,
     product_id INT,
     quantity INT,
-    price DECIMAL(10, 2),
-    FOREIGN KEY (order_id) REFERENCES Orders(id),
-    FOREIGN KEY (product_id) REFERENCES Products(id)
+    unit_price DECIMAL(10, 2),
+    FOREIGN KEY (order_id) REFERENCES Orders(id) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES Products(id) ON DELETE CASCADE
 );
 
 CREATE TABLE Discounts (
@@ -80,7 +72,7 @@ CREATE TABLE Discounts (
     discount_percentage DECIMAL(5, 2),
     valid_from DATE,
     valid_until DATE,
-    FOREIGN KEY (product_id) REFERENCES Products(id)
+    FOREIGN KEY (product_id) REFERENCES Products(id) ON DELETE CASCADE
 );
 
 CREATE TABLE Reports (
@@ -92,74 +84,45 @@ CREATE TABLE Reports (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-
-
-
 INSERT INTO Categories (name) 
-VALUES ('Clothing'), 
-       ('Electronics'), 
-       ('Accessories');
-
+VALUES ('Clothing'), ('Electronics'), ('Accessories');
 
 INSERT INTO Brands (name) 
-VALUES ('Nike'), 
-       ('Adidas'), 
-       ('Apple'), 
-       ('Samsung');
-
+VALUES ('Nike'), ('Adidas'), ('Apple'), ('Samsung');
 
 INSERT INTO Sizes (size) 
-VALUES ('S'), 
-       ('M'), 
-       ('L'), 
-       ('XL');
-
+VALUES ('S'), ('M'), ('L'), ('XL');
 
 INSERT INTO Colors (name) 
-VALUES ('Red'), 
-       ('Blue'), 
-       ('Black'), 
-       ('White');
-
+VALUES ('Red'), ('Blue'), ('Black'), ('White');
 
 INSERT INTO Products (name, description, price, person, quantity, category_id, brand_id, size_id, color_id, discount_percentage) 
 VALUES 
-('Nike Running Shoes', 'Comfortable shoes for running', 120.00, 'Men', 50, 1, 1, 2, 1, 10.00),
-('Adidas Hoodie', 'Warm hoodie for winter', 60.00, 'Women', 30, 1, 2, 3, 2, 5.00),
-('Apple iPhone 15', 'Latest model of iPhone', 999.00, 'Men', 10, 2, 3, NULL, 3, 0.00),
-('Samsung Galaxy Watch', 'Smartwatch with health tracking', 250.00, 'Women', 15, 3, 4, NULL, 4, 15.00);
-
+('Nike Running Shoes', 'Comfortable shoes for running', 120.00, 'men', 50, 1, 1, 2, 1, 10.00),
+('Adidas Hoodie', 'Warm hoodie for winter', 60.00, 'women', 30, 1, 2, 3, 2, 5.00),
+('Apple iPhone 15', 'Latest model of iPhone', 999.00, 'men', 10, 2, 3, NULL, 3, 0.00),
+('Samsung Galaxy Watch', 'Smartwatch with health tracking', 250.00, 'women', 15, 3, 4, NULL, 4, 15.00);
 
 INSERT INTO Users (username, password_hash, email, role) 
 VALUES 
-('adminy', '$2y$10$bAk930qjNgrsO82Lqry.nuCx/A5GtuGxV.e4B0EtuvVcfQbFajs7q', 'admiyn@example.com', 'Admin')
+('adminy', '$2b$12$77sozp.4Oo1GDbnhypEcjeu2nMgIMOrdfT8hXBI7SY8O.cmHxn2ee', 'admin@example.com', 'Admin');
 
-
-INSERT INTO Clients (name, email, address, phone) 
+INSERT INTO Orders (client_name, client_email, client_phone, client_address, total_amount, status) 
 VALUES 
-('Alice Johnson', 'alice.johnson@example.com', '123 Main St', '555-1234'),
-('Bob Smith', 'bob.smith@example.com', '456 Oak Ave', '555-5678');
+('Alice Johnson', 'alice.johnson@example.com', '555-1234', '123 Main St', 180.00, 'Pending'),
+('Bob Smith', 'bob.smith@example.com', '555-5678', '456 Oak Ave', 1050.00, 'Shipped');
 
-
-INSERT INTO Orders (client_id, total_amount, status) 
-VALUES 
-(1, 180.00, 'Pending'),
-(2, 1050.00, 'Shipped');
-
-
-INSERT INTO Order_Items (order_id, product_id, quantity, price) 
+INSERT INTO Order_Items (order_id, product_id, quantity, unit_price) 
 VALUES 
 (1, 1, 2, 120.00),
 (1, 2, 1, 60.00),
 (2, 3, 1, 999.00),
 (2, 4, 1, 250.00);
 
-
 INSERT INTO Discounts (product_id, discount_percentage, valid_from, valid_until) 
 VALUES 
 (1, 10.00, '2024-01-01', '2024-12-31'),
 (2, 5.00, '2024-01-01', '2024-12-31');
-
 
 INSERT INTO Reports (type, date, total_sales, top_selling_products) 
 VALUES 

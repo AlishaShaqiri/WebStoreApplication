@@ -1,50 +1,74 @@
 import axios from 'axios';
 import io from 'socket.io-client';
-
-const API_URL = 'http://localhost:5000/api/products/';
-const FILTERS_API_URL = 'http://localhost:5000/api/products/filters';
-const PRODUCT_API_URL = 'http://localhost:5000/api/products/';
-
+import config from './config';
 
 export const fetchFilters = async () => {
     try {
-        const response = await axios.get(FILTERS_API_URL);
+        const response = await axios.get(config.FILTERS_URL);
         return response.data;
     } catch (error) {
         throw new Error('Failed to load filter data.');
     }
 };
 
-
 export const fetchProducts = async (filters) => {
     try {
         const params = buildFilteredParams(filters);
-        const response = await axios.get(API_URL + 'search', { params });
+        const response = await axios.get(`${config.PRODUCT_URL}search`, { params });
         return response.data;
     } catch (error) {
         throw new Error('Failed to load products.');
     }
 };
 
-
 export const fetchProductDetails = async (id) => {
     try {
-        const response = await axios.get(`${PRODUCT_API_URL}${id}`);
+        const response = await axios.get(`${config.PRODUCT_URL}${id}`);
         return response.data;
     } catch (error) {
         throw new Error('Failed to load product details.');
     }
 };
 
-export const addProduct = async (productData, token) => {
+export const updateProduct = async (id, productData, token) => {
     try {
-        const config = {
-            headers: { Authorization: `Bearer ${token}` },
-        };
-
-        const response = await axios.post(PRODUCT_API_URL, productData, config);
+        const response = await axios.put(
+            `${config.PRODUCT_URL}${id}`, 
+            productData, 
+            {
+                headers: { Authorization: `Bearer ${token}` }
+            }
+        );
         return response.data;
     } catch (error) {
+        console.error('Error response:', error.response?.data || error.message);
+        throw new Error('Failed to update product. Please try again later.');
+    }
+};
+
+export const deleteProduct = async (id) => {
+    try {
+        const response = await axios.delete(`${config.PRODUCT_URL}${id}`);
+        return response.data;
+    } catch (error) {
+        throw new Error('Failed to delete product');
+    }
+};
+export const addProduct = async (productData, token) => {
+    try {
+        const response = await axios.post(
+            config.PRODUCT_URL, 
+            productData, 
+            {
+                headers: { 
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'multipart/form-data' // Ensures file upload works properly
+                }
+            }
+        );
+        return response.data;
+    } catch (error) {
+        console.error('Error response:', error.response?.data || error.message);
         throw new Error('Failed to add product. Please try again later.');
     }
 };
@@ -60,9 +84,8 @@ const buildFilteredParams = (filters) => {
     return params;
 };
 
-
 export const createSocketConnection = (productId, callback) => {
-    const socket = io('http://localhost:5000');
+    const socket = io(config.BASE_URL);
 
     socket.on('productQuantityUpdated', (data) => {
         if (data.product_id === productId) {
